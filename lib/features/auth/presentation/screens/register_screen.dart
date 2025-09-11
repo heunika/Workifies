@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../shared/models/user_model.dart';
-import '../../../../features/dashboard/presentation/screens/manager_dashboard_screen.dart';
-import '../../../../features/dashboard/presentation/screens/employee_dashboard_screen.dart';
+import '../../../../shared/services/firebase_service.dart';
 import '../../../../features/company/presentation/screens/company_registration_screen.dart';
 import '../../../../features/employee/presentation/screens/company_join_screen.dart';
 
@@ -42,7 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _handleRegister() {
+  void _handleRegister() async {
     if (_formKey.currentState?.validate() ?? false) {
       if (!_agreedToTerms) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,17 +56,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       setState(() => _isLoading = true);
       
-      // TODO: Implement actual registration logic with Firebase Auth
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-        
-        if (widget.role == UserRole.manager) {
-          _navigateToCompanyRegistration();
-        } else {
-          _navigateToCompanyJoin();
+      try {
+        final userCredential = await FirebaseService.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        if (userCredential != null && mounted) {
+          // Save user data to Firestore
+          await _saveUserData(userCredential.user!);
+          
+          if (widget.role == UserRole.manager) {
+            _navigateToCompanyRegistration();
+          } else {
+            _navigateToCompanyJoin();
+          }
         }
-      });
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Registration failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
+  }
+
+  Future<void> _saveUserData(User user) async {
+    final userData = {
+      'id': user.uid,
+      'email': _emailController.text.trim(),
+      'name': _nameController.text.trim(),
+      'role': widget.role.name,
+      'phone': _phoneController.text.trim(),
+      'position': _positionController.text.trim(),
+      'createdAt': DateTime.now().toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    await FirebaseService.users.doc(user.uid).set(userData);
   }
 
   void _navigateToCompanyRegistration() {

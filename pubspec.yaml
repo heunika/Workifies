@@ -43,14 +43,14 @@ dependencies:
   flutter_bloc: ^8.1.6
   equatable: ^2.0.5
   
-  # Firebase - Temporarily disabled for initial demo
-  # firebase_core: ^3.4.1
-  # firebase_auth: ^5.2.1
-  # cloud_firestore: ^5.4.1
-  # firebase_storage: ^12.3.1
-  # firebase_messaging: ^15.1.1
+  # Firebase
+  firebase_core: ^3.15.2
+  firebase_auth: ^5.2.1
+  cloud_firestore: ^5.4.1
+  firebase_storage: ^12.3.1
+  firebase_messaging: ^15.1.1
   
-  # Basic utilities (temporarily keeping minimal dependencies)
+  # Basic utilities
   intl: ^0.19.0
   
   # Charts and Analytics

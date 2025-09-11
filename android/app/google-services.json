@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "944705350270",
+    "project_id": "workifies",
+    "storage_bucket": "workifies.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944705350270:android:8893dfc1acdc6501f6862f",
+        "android_client_info": {
+          "package_name": "com.example.workifies"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "944705350270-gm5f29dpt3pvjp2d99950ipms696008j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYDX9BU_M0aYJKRxTl8qcBx22C8Zqql5c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "944705350270-gm5f29dpt3pvjp2d99950ipms696008j.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

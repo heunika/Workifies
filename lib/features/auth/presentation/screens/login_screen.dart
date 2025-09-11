@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../shared/models/user_model.dart';
+import '../../../../shared/services/firebase_service.dart';
 import '../../../../features/dashboard/presentation/screens/manager_dashboard_screen.dart';
 import '../../../../features/dashboard/presentation/screens/employee_dashboard_screen.dart';
 import 'register_screen.dart';
@@ -31,16 +32,33 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isLoading = true);
       
-      // TODO: Implement actual login logic with Firebase Auth
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-        // Navigate to appropriate dashboard based on role
-        _navigateToDashboard();
-      });
+      try {
+        final userCredential = await FirebaseService.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        if (userCredential != null && mounted) {
+          _navigateToDashboard();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 
