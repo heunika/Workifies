@@ -90,18 +90,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _saveUserData(User user) async {
-    final userData = {
-      'id': user.uid,
-      'email': _emailController.text.trim(),
-      'name': _nameController.text.trim(),
-      'role': widget.role.name,
-      'phone': _phoneController.text.trim(),
-      'position': _positionController.text.trim(),
-      'createdAt': DateTime.now().toIso8601String(),
-      'updatedAt': DateTime.now().toIso8601String(),
-    };
-
-    await FirebaseService.users.doc(user.uid).set(userData);
+    await FirebaseService.createUserProfile(
+      uid: user.uid,
+      email: _emailController.text.trim(),
+      name: _nameController.text.trim(),
+      role: widget.role,
+      position: _positionController.text.trim().isNotEmpty 
+          ? _positionController.text.trim() 
+          : null,
+    );
   }
 
   void _navigateToCompanyRegistration() {

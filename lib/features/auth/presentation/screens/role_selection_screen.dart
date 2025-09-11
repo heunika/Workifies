@@ -18,11 +18,12 @@ class RoleSelectionScreen extends StatelessWidget {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               const SizedBox(height: 20),
               
               Text(
@@ -93,8 +94,9 @@ class RoleSelectionScreen extends StatelessWidget {
                 },
               ),
               
-              const Spacer(),
-            ],
+              const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
