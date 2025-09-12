@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../../shared/services/chat_service.dart';
+import '../../../../../shared/models/chat_models.dart';
+import '../../../../../shared/models/user_model.dart';
 
 class EmployeeChatScreen extends StatefulWidget {
   const EmployeeChatScreen({super.key});
@@ -13,107 +16,112 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
-  final List<ChatConversation> _conversations = [
+  Stream<List<ChatConversation>>? _conversationsStream;
+  Stream<List<ChatMessage>>? _messagesStream;
+  List<ChatConversation> _conversations = [];
+  UserModel? _currentUser;
+  
+  // Fallback static data with proper Firebase structure
+  final List<ChatConversation> _staticConversations = [
     ChatConversation(
       id: '1',
       type: ChatType.individual,
       name: 'John Doe (Manager)',
       avatar: 'JD',
+      participantIds: ['manager1', 'currentUser'],
       lastMessage: 'Great job on the project this week!',
       lastMessageTime: DateTime.now().subtract(const Duration(minutes: 30)),
+      lastMessageSenderId: 'manager1',
       unreadCount: 1,
-      isOnline: true,
-      role: 'Manager',
+      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+      participantRoles: {'manager1': 'manager', 'currentUser': 'employee'},
     ),
     ChatConversation(
       id: '2',
       type: ChatType.individual,
       name: 'Michael Chen',
       avatar: 'MC',
+      participantIds: ['colleague1', 'currentUser'],
       lastMessage: 'Want to grab coffee later?',
       lastMessageTime: DateTime.now().subtract(const Duration(hours: 1)),
+      lastMessageSenderId: 'colleague1',
       unreadCount: 0,
-      isOnline: true,
-      role: 'Colleague',
+      createdAt: DateTime.now().subtract(const Duration(days: 2)),
+      participantRoles: {'colleague1': 'employee', 'currentUser': 'employee'},
     ),
     ChatConversation(
       id: '3',
       type: ChatType.group,
       name: 'Development Team',
       avatar: 'DT',
+      participantIds: ['manager1', 'colleague1', 'colleague2', 'currentUser'],
       lastMessage: 'Sarah: Meeting at 3 PM today',
       lastMessageTime: DateTime.now().subtract(const Duration(hours: 2)),
+      lastMessageSenderId: 'colleague2',
       unreadCount: 3,
-      isOnline: false,
-      participants: ['Michael Chen', 'Emily Rodriguez', 'David Wilson', 'You'],
+      createdAt: DateTime.now().subtract(const Duration(days: 7)),
+      participantNames: ['Michael Chen', 'Emily Rodriguez', 'David Wilson', 'You'],
     ),
     ChatConversation(
       id: '4',
       type: ChatType.group,
       name: 'All Company',
       avatar: 'AC',
+      participantIds: ['manager1', 'hr1', 'colleague1', 'colleague2', 'currentUser'],
       lastMessage: 'HR: Don\'t forget about the team building event!',
       lastMessageTime: DateTime.now().subtract(const Duration(hours: 4)),
+      lastMessageSenderId: 'hr1',
       unreadCount: 0,
-      isOnline: false,
-      participants: ['Everyone in the company'],
-    ),
-    ChatConversation(
-      id: '5',
-      type: ChatType.individual,
-      name: 'Emily Rodriguez',
-      avatar: 'ER',
-      lastMessage: 'Thanks for helping with the presentation',
-      lastMessageTime: DateTime.now().subtract(const Duration(days: 1)),
-      unreadCount: 0,
-      isOnline: false,
-      role: 'Colleague',
+      createdAt: DateTime.now().subtract(const Duration(days: 30)),
+      participantNames: ['Everyone in the company'],
     ),
   ];
 
-  final List<ChatMessage> _currentMessages = [
+  final List<ChatMessage> _staticMessages = [
     ChatMessage(
       id: '1',
+      conversationId: '1',
       senderId: '1',
       senderName: 'John Doe',
-      content: 'Hi Sarah! How\'s the project coming along?',
+      text: 'Hi! How\'s the project coming along?',
       timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      isFromCurrentUser: false,
-      senderRole: 'Manager',
+      senderRole: 'manager',
     ),
     ChatMessage(
       id: '2',
+      conversationId: '1',
       senderId: 'current',
       senderName: 'You',
-      content: 'It\'s going really well! I\'ve finished the main features and working on testing now.',
+      text: 'It\'s going really well! I\'ve finished the main features and working on testing now.',
       timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 55)),
-      isFromCurrentUser: true,
+      senderRole: 'employee',
     ),
     ChatMessage(
       id: '3',
+      conversationId: '1',
       senderId: '1',
       senderName: 'John Doe',
-      content: 'That\'s fantastic! The client is going to be very happy. You\'ve been doing excellent work.',
+      text: 'That\'s fantastic! The client is going to be very happy. You\'ve been doing excellent work.',
       timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 50)),
-      isFromCurrentUser: false,
-      senderRole: 'Manager',
+      senderRole: 'manager',
     ),
     ChatMessage(
       id: '4',
+      conversationId: '1',
       senderId: 'current',
       senderName: 'You',
-      content: 'Thank you so much! I really appreciate the feedback. Should I schedule a demo for tomorrow?',
+      text: 'Thank you so much! I really appreciate the feedback. Should I schedule a demo for tomorrow?',
       timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 45)),
-      isFromCurrentUser: true,
+      senderRole: 'employee',
     ),
     ChatMessage(
       id: '5',
+      conversationId: '1',
       senderId: '1',
       senderName: 'John Doe',
-      content: 'Great job on the project this week!',
+      text: 'Great job on the project this week!',
       timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-      isFromCurrentUser: false,
-      senderRole: 'Manager',
+      senderRole: 'manager',
     ),
   ];
 
@@ -123,9 +131,24 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _initializeData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
+  }
+
+  void _initializeData() async {
+    try {
+      _currentUser = await ChatService.getCurrentUserProfile();
+      setState(() {
+        _conversationsStream = ChatService.getConversations();
+      });
+    } catch (e) {
+      // Fallback to static data if Firebase fails
+      setState(() {
+        _conversations = _staticConversations;
+      });
+    }
   }
 
   @override
@@ -188,12 +211,19 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
                           color: Colors.white,
                         ),
                       ),
-                      Text(
-                        '${_conversations.where((c) => c.unreadCount > 0).length} unread messages',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
+                      StreamBuilder<List<ChatConversation>>(
+                        stream: _conversationsStream,
+                        builder: (context, snapshot) {
+                          final conversations = snapshot.data ?? _conversations;
+                          final unreadCount = conversations.where((c) => c.unreadCount > 0).length;
+                          return Text(
+                            '$unreadCount unread messages',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -234,7 +264,7 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
                 child: _QuickActionCard(
                   icon: Icons.person,
                   title: 'Message Manager',
-                  subtitle: 'John Doe',
+                  subtitle: 'Quick access',
                   onTap: () => _messageManager(),
                 ),
               ),
@@ -256,13 +286,51 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildConversationList(_conversations),
-              _buildConversationList(_conversations.where((c) => c.type == ChatType.group).toList()),
+              _buildAllChatsTab(),
+              _buildGroupChatsTab(),
             ],
           ),
         ),
       ],
     );
+  }
+
+  Widget _buildAllChatsTab() {
+    if (_conversationsStream != null) {
+      return StreamBuilder<List<ChatConversation>>(
+        stream: _conversationsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _buildConversationList(_staticConversations);
+          }
+          final conversations = snapshot.data ?? [];
+          return _buildConversationList(conversations);
+        },
+      );
+    }
+    return _buildConversationList(_conversations);
+  }
+
+  Widget _buildGroupChatsTab() {
+    if (_conversationsStream != null) {
+      return StreamBuilder<List<ChatConversation>>(
+        stream: _conversationsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _buildConversationList(_staticConversations.where((c) => c.type == ChatType.group).toList());
+          }
+          final conversations = (snapshot.data ?? []).where((c) => c.type == ChatType.group).toList();
+          return _buildConversationList(conversations);
+        },
+      );
+    }
+    return _buildConversationList(_conversations.where((c) => c.type == ChatType.group).toList());
   }
 
   Widget _buildConversationList(List<ChatConversation> conversations) {
@@ -312,7 +380,7 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
                         size: 20,
                       )
                     : Text(
-                        _selectedConversation!.avatar,
+                        _selectedConversation!.avatar ?? _selectedConversation!.name.substring(0, 2).toUpperCase(),
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -334,7 +402,7 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
                     ),
                     if (_selectedConversation!.type == ChatType.individual)
                       Text(
-                        _selectedConversation!.role ?? '',
+                        'Active',
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.8),
@@ -342,7 +410,7 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
                       )
                     else
                       Text(
-                        '${_selectedConversation!.participants?.length ?? 0} members',
+                        '${_selectedConversation!.participantNames?.length ?? _selectedConversation!.participantIds.length} members',
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           color: Colors.white.withValues(alpha: 0.8),
@@ -361,15 +429,57 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
         
         // Messages
         Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(16),
-            itemCount: _currentMessages.length,
-            itemBuilder: (context, index) {
-              final message = _currentMessages[index];
-              return _MessageBubble(message: message);
-            },
-          ),
+          child: _messagesStream != null
+              ? StreamBuilder<List<ChatMessage>>(
+                  stream: _messagesStream,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _staticMessages.length,
+                        itemBuilder: (context, index) {
+                          final message = _staticMessages[index];
+                          return _MessageBubble(
+                            message: message,
+                            currentUserId: _currentUser?.id ?? 'current',
+                          );
+                        },
+                      );
+                    }
+                    final messages = snapshot.data ?? [];
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _scrollToBottom();
+                    });
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        return _MessageBubble(
+                          message: message,
+                          currentUserId: _currentUser?.id ?? 'current',
+                        );
+                      },
+                    );
+                  },
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _staticMessages.length,
+                  itemBuilder: (context, index) {
+                    final message = _staticMessages[index];
+                    return _MessageBubble(
+                      message: message,
+                      currentUserId: _currentUser?.id ?? 'current',
+                    );
+                  },
+                ),
         ),
         
         // Message Input
@@ -435,52 +545,106 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
   void _openConversation(ChatConversation conversation) {
     setState(() {
       _selectedConversation = conversation;
-      conversation.unreadCount = 0;
+      _messagesStream = ChatService.getMessages(conversation.id);
     });
+    
+    // Mark messages as read
+    ChatService.markMessagesAsRead(conversation.id);
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isNotEmpty) {
-      setState(() {
-        _currentMessages.add(
-          ChatMessage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            senderId: 'current',
-            senderName: 'You',
-            content: _messageController.text.trim(),
-            timestamp: DateTime.now(),
-            isFromCurrentUser: true,
-          ),
+  void _sendMessage() async {
+    if (_messageController.text.trim().isNotEmpty && _selectedConversation != null) {
+      final text = _messageController.text.trim();
+      _messageController.clear();
+      
+      try {
+        await ChatService.sendMessage(
+          conversationId: _selectedConversation!.id,
+          text: text,
         );
-        _messageController.clear();
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to send message: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          // Restore the text if sending failed
+          _messageController.text = text;
+        }
+      }
     }
   }
 
-  void _messageManager() {
-    final managerConversation = _conversations.firstWhere(
-      (c) => c.role == 'Manager',
-    );
-    _openConversation(managerConversation);
+  void _messageManager() async {
+    try {
+      // Get managers from the company
+      final managers = await ChatService.getManagers();
+      if (managers.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No managers found in your company')),
+          );
+        }
+        return;
+      }
+      
+      // For now, select the first manager
+      final manager = managers.first;
+      final conversationId = await ChatService.createOrGetConversation(
+        otherUserId: manager.id,
+        otherUserName: manager.name,
+      );
+      
+      // Find the conversation and open it
+      final conversations = await ChatService.getConversations().first;
+      final managerConversation = conversations.firstWhere(
+        (c) => c.id == conversationId,
+        orElse: () => ChatConversation(
+          id: conversationId,
+          type: ChatType.individual,
+          name: '${manager.name} (Manager)',
+          participantIds: [manager.id, _currentUser?.id ?? 'current'],
+          lastMessage: 'Start your conversation...',
+          lastMessageTime: DateTime.now(),
+          lastMessageSenderId: '',
+          createdAt: DateTime.now(),
+        ),
+      );
+      _openConversation(managerConversation);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create conversation: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _openTeamChat() {
-    final teamConversation = _conversations.firstWhere(
-      (c) => c.name == 'Development Team',
-    );
+    final conversations = _conversationsStream != null ? [] : _conversations;
+    final teamConversation = conversations.isNotEmpty 
+        ? conversations.firstWhere(
+            (c) => c.name.contains('Team') || c.name.contains('Development'),
+            orElse: () => _staticConversations[2], // Development Team fallback
+          )
+        : _staticConversations[2]; // Development Team fallback
     _openConversation(teamConversation);
   }
 
   void _showSearchDialog() {
+    final conversations = _conversationsStream != null ? <ChatConversation>[] : _conversations;
     showSearch(
       context: context,
-      delegate: _ChatSearchDelegate(_conversations),
+      delegate: _ChatSearchDelegate(conversations.isEmpty ? _staticConversations : conversations),
     );
   }
 
@@ -506,6 +670,9 @@ class _EmployeeChatScreenState extends State<EmployeeChatScreen> with TickerProv
     );
   }
 }
+
+// Widget classes (QuickActionCard, ConversationTile, MessageBubble, etc.) remain the same
+// but with proper role handling and Firebase integration
 
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
@@ -584,6 +751,8 @@ class _ConversationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isManagerChat = conversation.participantRoles?.values.contains('manager') ?? false;
+    
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -611,7 +780,7 @@ class _ConversationTile extends StatelessWidget {
                       radius: 28,
                       backgroundColor: conversation.type == ChatType.group 
                           ? Colors.purple.withValues(alpha: 0.1)
-                          : conversation.role == 'Manager'
+                          : isManagerChat
                               ? Colors.orange.withValues(alpha: 0.1)
                               : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                       child: conversation.type == ChatType.group
@@ -621,34 +790,17 @@ class _ConversationTile extends StatelessWidget {
                               size: 24,
                             )
                           : Text(
-                              conversation.avatar,
+                              conversation.avatar ?? conversation.name.substring(0, 2).toUpperCase(),
                               style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: conversation.role == 'Manager'
+                                color: isManagerChat
                                     ? Colors.orange
                                     : Theme.of(context).colorScheme.primary,
                               ),
                             ),
                     ),
-                    if (conversation.type == ChatType.individual && conversation.isOnline)
-                      Positioned(
-                        bottom: 2,
-                        right: 2,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Theme.of(context).scaffoldBackgroundColor,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (conversation.role == 'Manager')
+                    if (isManagerChat)
                       Positioned(
                         top: 0,
                         right: 0,
@@ -762,22 +914,29 @@ class _ConversationTile extends StatelessWidget {
 
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
+  final String currentUserId;
 
-  const _MessageBubble({required this.message});
+  const _MessageBubble({
+    required this.message,
+    required this.currentUserId,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isFromCurrentUser = message.senderId == currentUserId;
+    final isFromManager = message.senderRole == 'manager';
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: message.isFromCurrentUser 
+        mainAxisAlignment: isFromCurrentUser 
             ? MainAxisAlignment.end 
             : MainAxisAlignment.start,
         children: [
-          if (!message.isFromCurrentUser) ...[
+          if (!isFromCurrentUser) ...[
             CircleAvatar(
               radius: 16,
-              backgroundColor: message.senderRole == 'Manager'
+              backgroundColor: isFromManager
                   ? Colors.orange.withValues(alpha: 0.1)
                   : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               child: Stack(
@@ -787,12 +946,12 @@ class _MessageBubble extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: message.senderRole == 'Manager'
+                      color: isFromManager
                           ? Colors.orange
                           : Theme.of(context).colorScheme.primary,
                     ),
                   ),
-                  if (message.senderRole == 'Manager')
+                  if (isFromManager)
                     Positioned(
                       top: -2,
                       right: -2,
@@ -819,7 +978,7 @@ class _MessageBubble extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: message.isFromCurrentUser
+                color: isFromCurrentUser
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
@@ -827,7 +986,7 @@ class _MessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!message.isFromCurrentUser)
+                  if (!isFromCurrentUser)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
@@ -837,12 +996,12 @@ class _MessageBubble extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: message.senderRole == 'Manager'
+                              color: isFromManager
                                   ? Colors.orange
                                   : Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                          if (message.senderRole == 'Manager') ...[
+                          if (isFromManager) ...[
                             const SizedBox(width: 4),
                             Icon(
                               Icons.star,
@@ -854,10 +1013,10 @@ class _MessageBubble extends StatelessWidget {
                       ),
                     ),
                   Text(
-                    message.content,
+                    message.text,
                     style: GoogleFonts.inter(
                       fontSize: 14,
-                      color: message.isFromCurrentUser
+                      color: isFromCurrentUser
                           ? Colors.white
                           : Theme.of(context).textTheme.bodyMedium?.color,
                     ),
@@ -867,7 +1026,7 @@ class _MessageBubble extends StatelessWidget {
                     _formatMessageTime(message.timestamp),
                     style: GoogleFonts.inter(
                       fontSize: 11,
-                      color: message.isFromCurrentUser
+                      color: isFromCurrentUser
                           ? Colors.white.withValues(alpha: 0.7)
                           : Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                     ),
@@ -893,6 +1052,8 @@ class _ChatOptionsBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isManagerChat = conversation.participantRoles?.values.contains('manager') ?? false;
+    
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -923,7 +1084,7 @@ class _ChatOptionsBottomSheet extends StatelessWidget {
             title: const Text('Search Messages'),
             onTap: () => Navigator.pop(context),
           ),
-          if (conversation.role != 'Manager') ...[
+          if (!isManagerChat) ...[
             ListTile(
               leading: const Icon(Icons.block, color: Colors.red),
               title: const Text('Block User', style: TextStyle(color: Colors.red)),
@@ -1080,7 +1241,7 @@ class _ChatSearchDelegate extends SearchDelegate {
           leading: CircleAvatar(
             child: conversation.type == ChatType.group
                 ? Icon(Icons.group)
-                : Text(conversation.avatar),
+                : Text(conversation.avatar ?? conversation.name.substring(0, 2).toUpperCase()),
           ),
           title: Text(conversation.name),
           subtitle: Text(conversation.lastMessage),
@@ -1090,52 +1251,3 @@ class _ChatSearchDelegate extends SearchDelegate {
     );
   }
 }
-
-// Models
-class ChatConversation {
-  final String id;
-  final ChatType type;
-  final String name;
-  final String avatar;
-  final String lastMessage;
-  final DateTime lastMessageTime;
-  int unreadCount;
-  final bool isOnline;
-  final List<String>? participants;
-  final String? role;
-
-  ChatConversation({
-    required this.id,
-    required this.type,
-    required this.name,
-    required this.avatar,
-    required this.lastMessage,
-    required this.lastMessageTime,
-    required this.unreadCount,
-    required this.isOnline,
-    this.participants,
-    this.role,
-  });
-}
-
-class ChatMessage {
-  final String id;
-  final String senderId;
-  final String senderName;
-  final String content;
-  final DateTime timestamp;
-  final bool isFromCurrentUser;
-  final String? senderRole;
-
-  ChatMessage({
-    required this.id,
-    required this.senderId,
-    required this.senderName,
-    required this.content,
-    required this.timestamp,
-    required this.isFromCurrentUser,
-    this.senderRole,
-  });
-}
-
-enum ChatType { individual, group }

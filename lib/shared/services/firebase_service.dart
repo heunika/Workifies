@@ -116,6 +116,7 @@ class FirebaseService {
     String? imageUrl,
     String? fileUrl,
     String? fileName,
+    String? senderRole,
   }) async {
     final message = ChatMessage(
       id: '',
@@ -128,6 +129,7 @@ class FirebaseService {
       imageUrl: imageUrl,
       fileUrl: fileUrl,
       fileName: fileName,
+      senderRole: senderRole,
     );
 
     final docRef = await messages.add(message.toFirestore());

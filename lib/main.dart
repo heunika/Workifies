@@ -22,7 +22,7 @@ class WorkifiesApp extends StatelessWidget {
       title: 'Workifies',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );

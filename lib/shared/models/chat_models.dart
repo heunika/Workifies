@@ -16,6 +16,7 @@ class ChatMessage extends Equatable {
   final String? imageUrl;
   final String? fileUrl;
   final String? fileName;
+  final String? senderRole;
 
   const ChatMessage({
     required this.id,
@@ -29,6 +30,7 @@ class ChatMessage extends Equatable {
     this.imageUrl,
     this.fileUrl,
     this.fileName,
+    this.senderRole,
   });
 
   factory ChatMessage.fromFirestore(DocumentSnapshot doc) {
@@ -45,6 +47,7 @@ class ChatMessage extends Equatable {
       imageUrl: data['imageUrl'],
       fileUrl: data['fileUrl'],
       fileName: data['fileName'],
+      senderRole: data['senderRole'],
     );
   }
 
@@ -60,6 +63,7 @@ class ChatMessage extends Equatable {
       'imageUrl': imageUrl,
       'fileUrl': fileUrl,
       'fileName': fileName,
+      'senderRole': senderRole,
     };
   }
 
@@ -76,6 +80,7 @@ class ChatMessage extends Equatable {
         imageUrl,
         fileUrl,
         fileName,
+        senderRole,
       ];
 }
 
@@ -91,6 +96,8 @@ class ChatConversation extends Equatable {
   final int unreadCount;
   final bool isActive;
   final DateTime createdAt;
+  final List<String>? participantNames;
+  final Map<String, String>? participantRoles;
 
   const ChatConversation({
     required this.id,
@@ -104,6 +111,8 @@ class ChatConversation extends Equatable {
     this.unreadCount = 0,
     this.isActive = true,
     required this.createdAt,
+    this.participantNames,
+    this.participantRoles,
   });
 
   factory ChatConversation.fromFirestore(DocumentSnapshot doc) {
@@ -120,6 +129,8 @@ class ChatConversation extends Equatable {
       unreadCount: data['unreadCount'] ?? 0,
       isActive: data['isActive'] ?? true,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      participantNames: data['participantNames'] != null ? List<String>.from(data['participantNames']) : null,
+      participantRoles: data['participantRoles'] != null ? Map<String, String>.from(data['participantRoles']) : null,
     );
   }
 
@@ -135,6 +146,8 @@ class ChatConversation extends Equatable {
       'unreadCount': unreadCount,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
+      'participantNames': participantNames,
+      'participantRoles': participantRoles,
     };
   }
 
@@ -150,6 +163,8 @@ class ChatConversation extends Equatable {
     int? unreadCount,
     bool? isActive,
     DateTime? createdAt,
+    List<String>? participantNames,
+    Map<String, String>? participantRoles,
   }) {
     return ChatConversation(
       id: id ?? this.id,
@@ -163,6 +178,8 @@ class ChatConversation extends Equatable {
       unreadCount: unreadCount ?? this.unreadCount,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
+      participantNames: participantNames ?? this.participantNames,
+      participantRoles: participantRoles ?? this.participantRoles,
     );
   }
 
@@ -179,5 +196,7 @@ class ChatConversation extends Equatable {
         unreadCount,
         isActive,
         createdAt,
+        participantNames,
+        participantRoles,
       ];
 }
