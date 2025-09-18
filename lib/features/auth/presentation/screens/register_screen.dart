@@ -5,6 +5,7 @@ import '../../../../shared/models/user_model.dart';
 import '../../../../shared/services/firebase_service.dart';
 import '../../../../features/company/presentation/screens/company_registration_screen.dart';
 import '../../../../features/employee/presentation/screens/company_join_screen.dart';
+import 'email_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   final UserRole role;
@@ -65,12 +66,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (userCredential != null && mounted) {
           // Save user data to Firestore
           await _saveUserData(userCredential.user!);
-          
-          if (widget.role == UserRole.manager) {
-            _navigateToCompanyRegistration();
-          } else {
-            _navigateToCompanyJoin();
-          }
+
+          // Navigate to email verification first
+          _navigateToEmailVerification();
         }
       } catch (e) {
         if (mounted) {
@@ -121,13 +119,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _handleGoogleSignUp() {
-    // TODO: Implement Google Sign-Up
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Google Sign-Up - Not implemented yet'),
+  void _navigateToEmailVerification() {
+    // Navigate to email verification screen
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (context) => EmailVerificationScreen(role: widget.role),
       ),
+      (route) => false,
     );
+  }
+
+  void _handleGoogleSignUp() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final userCredential = await FirebaseService.signInWithGoogle();
+
+      if (userCredential != null && mounted) {
+        // Check if user profile exists
+        final userProfile = await FirebaseService.getUserProfile(userCredential.user!.uid);
+
+        if (userProfile == null) {
+          // New Google user - create profile with selected role
+          await FirebaseService.createUserProfile(
+            uid: userCredential.user!.uid,
+            email: userCredential.user!.email!,
+            name: userCredential.user!.displayName ?? 'User',
+            role: widget.role,
+          );
+        }
+
+        // Navigate to email verification (Google accounts are usually verified)
+        if (userCredential.user!.emailVerified) {
+          if (widget.role == UserRole.manager) {
+            _navigateToCompanyRegistration();
+          } else {
+            _navigateToCompanyJoin();
+          }
+        } else {
+          _navigateToEmailVerification();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google Sign-Up failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override

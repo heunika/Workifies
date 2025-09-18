@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../features/dashboard/presentation/screens/employee_dashboard_screen.dart';
-// import 'package:mobile_scanner/mobile_scanner.dart'; // Temporarily disabled
+import '../../../../shared/services/firebase_service.dart';
+import '../../../../shared/models/company_model.dart';
 
 class CompanyJoinScreen extends StatefulWidget {
   const CompanyJoinScreen({super.key});
@@ -28,7 +29,7 @@ class _CompanyJoinScreenState extends State<CompanyJoinScreen> with TickerProvid
     super.dispose();
   }
 
-  void _handleJoinCompany(String companyCode) {
+  void _handleJoinCompany(String companyCode) async {
     if (companyCode.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -41,14 +42,42 @@ class _CompanyJoinScreenState extends State<CompanyJoinScreen> with TickerProvid
 
     setState(() => _isLoading = true);
 
-    // TODO: Implement actual company join logic with Firebase
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() => _isLoading = false);
-      _showJoinSuccess();
-    });
+    try {
+      final currentUser = FirebaseService.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Find company by code
+      final company = await FirebaseService.getCompanyByCode(companyCode.toUpperCase());
+      if (company == null) {
+        throw Exception('Company not found with this code');
+      }
+
+      // Join the company
+      await FirebaseService.joinCompany(
+        userId: currentUser.uid,
+        companyId: company.id,
+      );
+
+      _showJoinSuccess(company);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Join failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
-  void _showJoinSuccess() {
+  void _showJoinSuccess(CompanyModel company) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -83,7 +112,7 @@ class _CompanyJoinScreenState extends State<CompanyJoinScreen> with TickerProvid
             ),
             const SizedBox(height: 12),
             Text(
-              'You have successfully joined\nTech Innovations Inc.',
+              'You have successfully joined\n${company.name}',
               style: GoogleFonts.inter(
                 color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
               ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../features/dashboard/presentation/screens/manager_dashboard_screen.dart';
-// import '../../../../shared/models/company_model.dart'; // Temporarily disabled
-// import 'package:qr_flutter/qr_flutter.dart'; // Temporarily disabled
+import '../../../../shared/services/firebase_service.dart';
+import '../../../../shared/models/company_model.dart';
 
 class CompanyRegistrationScreen extends StatefulWidget {
   const CompanyRegistrationScreen({super.key});
@@ -27,23 +27,43 @@ class _CompanyRegistrationScreenState extends State<CompanyRegistrationScreen> {
     super.dispose();
   }
 
-  void _generateCompanyCode() {
-    // Simple code generation - should be more robust in production
-    final now = DateTime.now();
-    _generatedCode = 'WRK${now.millisecond}${now.second}';
-    setState(() {});
-  }
-
-  void _handleRegistration() {
+  void _handleRegistration() async {
     if (_formKey.currentState?.validate() ?? false) {
-      _generateCompanyCode();
       setState(() => _isLoading = true);
-      
-      // TODO: Implement actual company registration with Firebase
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isLoading = false);
-        _showSuccessDialog();
-      });
+
+      try {
+        final currentUser = FirebaseService.currentUser;
+        if (currentUser == null) {
+          throw Exception('User not authenticated');
+        }
+
+        final companyId = await FirebaseService.createCompany(
+          name: _companyNameController.text.trim(),
+          industry: _industryController.text.trim(),
+          yearFounded: int.parse(_yearFoundedController.text.trim()),
+          managerId: currentUser.uid,
+        );
+
+        // Get the created company to show the code
+        final company = await FirebaseService.getCompanyById(companyId);
+        if (company != null) {
+          _generatedCode = company.companyCode;
+          _showSuccessDialog();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Registration failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
     }
   }
 

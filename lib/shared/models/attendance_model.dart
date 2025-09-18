@@ -8,6 +8,12 @@ class AttendanceModel extends Equatable {
   final DateTime? clockOutTime;
   final Duration? totalHours;
   final String? notes;
+  final double? clockInLatitude;
+  final double? clockInLongitude;
+  final double? clockOutLatitude;
+  final double? clockOutLongitude;
+  final String? clockInAddress;
+  final String? clockOutAddress;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,6 +25,12 @@ class AttendanceModel extends Equatable {
     this.clockOutTime,
     this.totalHours,
     this.notes,
+    this.clockInLatitude,
+    this.clockInLongitude,
+    this.clockOutLatitude,
+    this.clockOutLongitude,
+    this.clockInAddress,
+    this.clockOutAddress,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,13 +41,19 @@ class AttendanceModel extends Equatable {
       userId: json['userId'] as String,
       companyId: json['companyId'] as String,
       clockInTime: DateTime.parse(json['clockInTime'] as String),
-      clockOutTime: json['clockOutTime'] != null 
-          ? DateTime.parse(json['clockOutTime'] as String) 
+      clockOutTime: json['clockOutTime'] != null
+          ? DateTime.parse(json['clockOutTime'] as String)
           : null,
-      totalHours: json['totalHours'] != null 
-          ? Duration(microseconds: json['totalHours'] as int) 
+      totalHours: json['totalHours'] != null
+          ? Duration(microseconds: json['totalHours'] as int)
           : null,
       notes: json['notes'] as String?,
+      clockInLatitude: json['clockInLatitude'] as double?,
+      clockInLongitude: json['clockInLongitude'] as double?,
+      clockOutLatitude: json['clockOutLatitude'] as double?,
+      clockOutLongitude: json['clockOutLongitude'] as double?,
+      clockInAddress: json['clockInAddress'] as String?,
+      clockOutAddress: json['clockOutAddress'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -50,6 +68,12 @@ class AttendanceModel extends Equatable {
       'clockOutTime': clockOutTime?.toIso8601String(),
       'totalHours': totalHours?.inMicroseconds,
       'notes': notes,
+      'clockInLatitude': clockInLatitude,
+      'clockInLongitude': clockInLongitude,
+      'clockOutLatitude': clockOutLatitude,
+      'clockOutLongitude': clockOutLongitude,
+      'clockInAddress': clockInAddress,
+      'clockOutAddress': clockOutAddress,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -63,6 +87,12 @@ class AttendanceModel extends Equatable {
     DateTime? clockOutTime,
     Duration? totalHours,
     String? notes,
+    double? clockInLatitude,
+    double? clockInLongitude,
+    double? clockOutLatitude,
+    double? clockOutLongitude,
+    String? clockInAddress,
+    String? clockOutAddress,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -74,6 +104,12 @@ class AttendanceModel extends Equatable {
       clockOutTime: clockOutTime ?? this.clockOutTime,
       totalHours: totalHours ?? this.totalHours,
       notes: notes ?? this.notes,
+      clockInLatitude: clockInLatitude ?? this.clockInLatitude,
+      clockInLongitude: clockInLongitude ?? this.clockInLongitude,
+      clockOutLatitude: clockOutLatitude ?? this.clockOutLatitude,
+      clockOutLongitude: clockOutLongitude ?? this.clockOutLongitude,
+      clockInAddress: clockInAddress ?? this.clockInAddress,
+      clockOutAddress: clockOutAddress ?? this.clockOutAddress,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -90,6 +126,12 @@ class AttendanceModel extends Equatable {
         clockOutTime,
         totalHours,
         notes,
+        clockInLatitude,
+        clockInLongitude,
+        clockOutLatitude,
+        clockOutLongitude,
+        clockInAddress,
+        clockOutAddress,
         createdAt,
         updatedAt,
       ];

@@ -5,6 +5,7 @@ import '../../../../shared/services/firebase_service.dart';
 import '../../../../features/dashboard/presentation/screens/manager_dashboard_screen.dart';
 import '../../../../features/dashboard/presentation/screens/employee_dashboard_screen.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final UserRole role;
@@ -77,13 +78,42 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _handleGoogleSignIn() {
-    // TODO: Implement Google Sign-In
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Google Sign-In - Not implemented yet'),
-      ),
-    );
+  void _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final userCredential = await FirebaseService.signInWithGoogle();
+
+      if (userCredential != null && mounted) {
+        // Check if user profile exists
+        final userProfile = await FirebaseService.getUserProfile(userCredential.user!.uid);
+
+        if (userProfile == null) {
+          // New Google user - create profile with selected role
+          await FirebaseService.createUserProfile(
+            uid: userCredential.user!.uid,
+            email: userCredential.user!.email!,
+            name: userCredential.user!.displayName ?? 'User',
+            role: widget.role,
+          );
+        }
+
+        _navigateToDashboard();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google Sign-In failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -184,9 +214,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // TODO: Implement forgot password
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Forgot password - Not implemented yet')),
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
                       );
                     },
                     child: Text(
